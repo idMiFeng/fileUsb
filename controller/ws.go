@@ -6,6 +6,12 @@ import (
 	"log"
 )
 
+type WsRes struct {
+	Type       string   `json:"type"`
+	Mountpoint string   `json:"mountpoint"`
+	Path       []string `json:"path"`
+}
+
 type WsMessage struct {
 	Code  int         `json:"code"`
 	Data  interface{} `json:"data,omitempty"`
@@ -21,14 +27,14 @@ const (
 func HandleWebSocketMessage(s *melody.Session, msg []byte) {
 	log.Println("Received message:", string(msg))
 	// 前端发送的数据格式为 JSON：{"type": "download", "path": "/media/fengmi/3A5EBF185EBECC3F"}
-	var data map[string]string
+	var data WsRes
 	if err := json.Unmarshal(msg, &data); err != nil {
 		log.Println("Error decoding JSON:", err)
 		return
 	}
 
 	// 根据指令类型执行操作
-	switch data["type"] {
+	switch data.Type {
 	case "disk":
 		Blockdevice := DiskInfo()
 		ws := WsMessage{
@@ -40,8 +46,8 @@ func HandleWebSocketMessage(s *melody.Session, msg []byte) {
 		_ = s.Write(data)
 
 	case "info":
-		log.Println(data["mountpoint"])
-		if datas, err := ListDisk(data["mountpoint"]); err != nil {
+		log.Println(data.Mountpoint)
+		if datas, err := ListDisk(data.Mountpoint); err != nil {
 			ws := WsMessage{
 				Code:  errorCode,
 				Error: err.Error(),
@@ -64,23 +70,25 @@ func HandleWebSocketMessage(s *melody.Session, msg []byte) {
 		// 2024-03-29   日期
 		// 15-30-20 时间
 		destDir := "files"
-		if err := copyFiles(data["path"], destDir); err != nil {
-			ws := WsMessage{
-				Code:  errorCode,
-				Error: err.Error(),
+		for _, path := range data.Path {
+			if err := copyFiles(path, destDir); err != nil {
+				ws := WsMessage{
+					Code:  errorCode,
+					Error: err.Error(),
+				}
+				data, _ := json.Marshal(&ws)
+				_ = s.Write(data)
+			} else {
+				log.Println("copy success", path)
 			}
-			data, _ := json.Marshal(&ws)
-			_ = s.Write(data)
-		} else {
-			log.Println("copy success")
-			ws := WsMessage{
-				Code: successCode,
-				Data: "success",
-				Op:   "copy",
-			}
-			data, _ := json.Marshal(&ws)
-			_ = s.Write(data)
 		}
+		ws := WsMessage{
+			Code: successCode,
+			Data: "success",
+			Op:   "copy",
+		}
+		data, _ := json.Marshal(&ws)
+		_ = s.Write(data)
 	default:
 		log.Println("Unknown command")
 	}

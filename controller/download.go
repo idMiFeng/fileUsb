@@ -27,11 +27,22 @@ func Download(c *gin.Context) {
 	c.Header("Content-Disposition", "attachment; filename="+filepath.Base(path))
 
 	// 设置正确的 MIME 类型
-	c.Header("Content-Type", "application/octet-stream") // 通用的二进制流类型
-	// 如果文件类型是视频，可以根据实际情况设置 MIME 类型
-	if strings.HasSuffix(strings.ToLower(path), ".mp4") {
-		c.Header("Content-Type", "video/mp4")
+	var contentType string
+	ext := strings.ToLower(filepath.Ext(path))
+	switch ext {
+	case ".mp4":
+		contentType = "video/mp4"
+	case ".avi":
+		contentType = "video/x-msvideo"
+	case ".mov":
+		contentType = "video/quicktime"
+	case ".wmv":
+		contentType = "video/x-ms-wmv"
+	default:
+		contentType = "application/octet-stream" // 默认二进制流类型
 	}
+
+	c.Header("Content-Type", contentType)
 
 	// 发送文件给客户端
 	c.File(path)

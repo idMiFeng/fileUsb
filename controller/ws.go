@@ -13,10 +13,10 @@ type WsRes struct {
 }
 
 type WsMessage struct {
-	Code  int         `json:"code"`
-	Data  interface{} `json:"data,omitempty"`
-	Error string      `json:"error,omitempty"`
-	Op    string      `json:"op,omitempty"`
+	Code int         `json:"code"`
+	Data interface{} `json:"data,omitempty"`
+	Msg  string      `json:"msg,omitempty"`
+	Op   string      `json:"op,omitempty"`
 }
 
 const (
@@ -49,8 +49,8 @@ func HandleWebSocketMessage(s *melody.Session, msg []byte) {
 		log.Println(data.Mountpoint)
 		if datas, err := ListDisk(data.Mountpoint); err != nil {
 			ws := WsMessage{
-				Code:  errorCode,
-				Error: err.Error(),
+				Code: errorCode,
+				Msg:  err.Error(),
 			}
 			data, _ := json.Marshal(&ws)
 			_ = s.Write(data)
@@ -73,8 +73,8 @@ func HandleWebSocketMessage(s *melody.Session, msg []byte) {
 		for _, path := range data.Path {
 			if err := copyFiles(path, destDir); err != nil {
 				ws := WsMessage{
-					Code:  errorCode,
-					Error: err.Error(),
+					Code: errorCode,
+					Msg:  err.Error(),
 				}
 				data, _ := json.Marshal(&ws)
 				_ = s.Write(data)
@@ -96,8 +96,8 @@ func HandleWebSocketMessage(s *melody.Session, msg []byte) {
 
 func WsHandleConnect(s *melody.Session) {
 	ws := WsMessage{
-		Code:  successCode,
-		Error: "",
+		Code: successCode,
+		Msg:  "",
 	}
 	data, _ := json.Marshal(&ws)
 	_ = s.Write(data)
@@ -105,8 +105,8 @@ func WsHandleConnect(s *melody.Session) {
 
 func WsHandleDisconnect(s *melody.Session) {
 	ws := WsMessage{
-		Code:  successCode,
-		Error: "",
+		Code: successCode,
+		Msg:  "",
 	}
 	data, _ := json.Marshal(&ws)
 	_ = s.Write(data)

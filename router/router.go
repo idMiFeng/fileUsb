@@ -17,6 +17,12 @@ func InitRouter() {
 	r := gin.Default()
 	r.Use(middlewares.Cors())
 	r.NoRoute(NotFound)
+	r.LoadHTMLFiles("./ui/index.html")
+	r.Static("/static", "./ui/static")
+	r.GET("/", func(c *gin.Context) {
+
+		c.HTML(http.StatusOK, "index.html", nil)
+	})
 	v1 := r.Group("api")
 	{
 

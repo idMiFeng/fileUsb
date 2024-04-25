@@ -2,6 +2,8 @@ package controller
 
 import (
 	"encoding/json"
+	"fileUsb/error"
+	"fileUsb/service"
 	"github.com/olahol/melody"
 	"log"
 )
@@ -10,6 +12,8 @@ type WsRes struct {
 	Type       string   `json:"type"`
 	Mountpoint string   `json:"mountpoint"`
 	Path       []string `json:"path"`
+	SortType   string   `json:"sort_type"`
+	SearchName string   `json:"search_name"`
 }
 
 type WsMessage struct {
@@ -30,11 +34,48 @@ func HandleWebSocketMessage(s *melody.Session, msg []byte) {
 	var data WsRes
 	if err := json.Unmarshal(msg, &data); err != nil {
 		log.Println("Error decoding JSON:", err)
+		ws := WsMessage{
+			Code: errorCode,
+			Msg:  err.Error(),
+		}
+		data, _ := json.Marshal(&ws)
+		_ = s.Write(data)
 		return
 	}
 
 	// 根据指令类型执行操作
 	switch data.Type {
+	case "search":
+		files, _ := SearchFiles(data.Mountpoint, data.SearchName)
+		data, _ := json.Marshal(&files)
+		ws := WsMessage{
+			Code: successCode,
+			Data: files,
+			Op:   "search",
+		}
+		data, _ = json.Marshal(&ws)
+		_ = s.Write(data)
+	case "size", "name", "data", "file_type":
+		files, err := ListDisk(data.Mountpoint)
+		if err != nil {
+			log.Println("Error listing disk:", err)
+			ws := WsMessage{
+				Code: errorCode,
+				Msg:  error.ErrFileFalse.Error(),
+			}
+			data, _ := json.Marshal(&ws)
+			_ = s.Write(data)
+			return
+		}
+		// 对文件列表进行排序
+		sortedFiles, _ := service.SortFiles(data.Type, data.SortType, files)
+		ws := WsMessage{
+			Code: successCode,
+			Data: sortedFiles,
+			Op:   "sort",
+		}
+		data, _ := json.Marshal(&ws)
+		_ = s.Write(data)
 	case "disk":
 		Blockdevice := DiskInfo()
 		ws := WsMessage{
@@ -46,7 +87,7 @@ func HandleWebSocketMessage(s *melody.Session, msg []byte) {
 		_ = s.Write(data)
 
 	case "info":
-		log.Println(data.Mountpoint)
+		//log.Println(data.Mountpoint)
 		if datas, err := ListDisk(data.Mountpoint); err != nil {
 			ws := WsMessage{
 				Code: errorCode,
